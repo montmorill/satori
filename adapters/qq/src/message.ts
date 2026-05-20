@@ -251,6 +251,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     session.type = 'send'
     const send = async () => {
       try {
+        console.log('send', data)
         const resp = this.session.isDirect
           ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
           : await this.bot.internal.sendMessage(this.session.channelId, data)
@@ -411,6 +412,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         default:
           this.content += `<@${attrs.id}>`
       }
+    } else if (type === 'emoji') {
+      // FIXME: emoji id 和 Unicode 码点似乎不全是对应的，可能需要手动映射
+      // this.content += String.fromCharCode(20, attrs.id)
     } else if (type === 'passive') {
       if (attrs.messageId) this.passiveId = attrs.messageId
       if (attrs.seq) this.passiveSeq = Number(attrs.seq)
@@ -419,9 +423,17 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.reference = attrs.id
       await this.flush()
     } else if ((type === 'img' || type === 'image') && (attrs.src || attrs.url)) {
-      await this.flush()
-      const data = await this.sendFile(type, attrs)
-      if (data) this.attachedFile = data
+      if (this.useMarkdown) {
+        let alt = typeof attrs.alt === 'string' ? attrs.alt + ' ' : ''
+        // TODO: 自动添加尺寸信息
+        if (attrs.width && attrs.height) alt += `#${attrs.width}px #${attrs.height}px`
+        this.content += `![${alt}](${attrs.src || attrs.url})`
+      } else {
+        // TODO: 处理 image+markdown 情况
+        await this.flush()
+        const data = await this.sendFile(type, attrs)
+        if (data) this.attachedFile = data
+      }
     } else if (type === 'video' && (attrs.src || attrs.url)) {
       await this.flush()
       const data = await this.sendFile(type, attrs)
