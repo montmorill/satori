@@ -128,6 +128,7 @@ export namespace QQBot {
     protocol: 'websocket' | 'webhook'
     path?: string
     gatewayUrl?: string
+    addImageSize?: boolean
   }
 
   export type Config = BaseConfig & (HttpServer.Options | WsClient.Options)
@@ -150,6 +151,7 @@ export namespace QQBot {
     Schema.object({
       manualAcknowledge: Schema.boolean().description('手动响应回调消息。').default(false),
       gatewayUrl: Schema.string().role('link').description('覆写 WebSocket 地址。'),
+      addImageSize: Schema.boolean().description('为未指定尺寸的图片添加尺寸信息。').default(true),
     }).description('高级设置'),
   ] as const)
 }

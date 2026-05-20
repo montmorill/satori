@@ -3,6 +3,7 @@ import { Context, Dict, h, MessageEncoder, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import { parseQQArkElement } from './ark'
+import probe from 'probe-image-size'
 
 export const escapeMarkdown = (val: string) =>
   val
@@ -204,6 +205,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   reference: string
 
   async sendMessage(data: QQ.Message.Request, session: Session) {
+    console.log(data)
     try {
       const resp = this.session.isDirect
         ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
@@ -431,10 +433,18 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.flush()
     } else if ((type === 'img' || type === 'image') && (attrs.src || attrs.url)) {
       if (this.useMarkdown) {
-        let alt = typeof attrs.alt === 'string' ? attrs.alt + ' ' : ''
-        // TODO: 自动添加尺寸信息
-        if (attrs.width && attrs.height) alt += `#${attrs.width}px #${attrs.height}px`
-        this.content += `![${alt}](${attrs.src || attrs.url})`
+        let { alt = attrs.title, src = attrs.url, width, height, zoom = 1 } = attrs
+        if (this.bot.config.addImageSize && Number.isNaN(width + height)) {
+          const res = await probe(src)
+          width = res.width
+          height = res.height
+        }
+        if (width && height) {
+          width *= zoom
+          height *= zoom
+          alt += ` #${width}px #${height}px`
+        }
+        this.content += `![${alt}](${src})`
       } else {
         // TODO: 处理 image+markdown 情况
         await this.flush()
