@@ -406,6 +406,14 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     }
   }
 
+  static MARKDOWN_MODIFIERS = Object.entries({
+    '**': ['b', 'strong'],
+    '_': ['i', 'em'],
+    '~~': ['s', 'del'],
+    '/': ['u', 'ins'],
+    '`': ['code'],
+  })
+
   async visit(element: h) {
     const { attrs, children } = element
     const type = element.type.replace(/^qq:/, '')
@@ -527,6 +535,15 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
       await this.flush()
     } else {
+      for (const [delimiter, types] of QQMessageEncoder.MARKDOWN_MODIFIERS) {
+        if (types.includes(type)) {
+          this.ensureMarkdown()
+          this.content += delimiter
+          await this.render(children)
+          this.content += delimiter
+          return
+        }
+      }
       await this.render(children)
     }
   }
