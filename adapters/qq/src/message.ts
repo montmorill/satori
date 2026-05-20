@@ -1,7 +1,8 @@
 import * as QQ from './types'
-import { Context, Dict, h, MessageEncoder } from '@satorijs/core'
+import { Context, Dict, h, MessageEncoder, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
+import { parseQQArkElement } from './ark'
 
 export const escapeMarkdown = (val: string) =>
   val
@@ -198,12 +199,45 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   private inMarkdown = 0
   private rows: QQ.Button[][] = []
   private attachedFile: QQ.Message.File.Response
+  private ark: QQ.Message.Ark
   private retry = false
   reference: string
 
-  // 先图后文
+  async sendMessage(data: QQ.Message.Request, session: Session) {
+    try {
+      const resp = this.session.isDirect
+        ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
+        : await this.bot.internal.sendMessage(this.session.channelId, data)
+      if (resp.id && !resp.audit_id) {
+        session.messageId = resp.id
+        session.timestamp = new Date(resp.timestamp).valueOf()
+        session.channelId = this.session.channelId
+        session.guildId = this.session.guildId
+        session.app.emit(session, 'send', session)
+        this.results.push(session.event.message)
+      } else if (resp.audit_id && this.bot.config.intents & QQ.Intents.MESSAGE_AUDIT) {
+        try {
+          const auditData: QQ.MessageAudited = await this.audit(resp.audit_id)
+          session.messageId = auditData.message_id
+          session.app.emit(session, 'send', session)
+          this.results.push(session.event.message)
+        } catch (e) {
+          this.bot.logger.error(e)
+        }
+      }
+    } catch (e) {
+      if (!this.bot.http.isError(e)) throw e
+      this.errors.push(e)
+      if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
+        this.bot.logger.warn('%s retry message sending', this.session.cid)
+        this.retry = true
+        await this.sendMessage(data, session)
+      }
+    }
+  }
+
   async flush() {
-    if (!this.content.trim() && !this.rows.flat().length && !this.attachedFile) return
+    if (!this.content.trim() && !this.rows.flat().length && !this.attachedFile && !this.ark) return
     this.trimButtons()
     let msg_id: string, msg_seq: number, event_id: string
     if (this.options?.session?.messageId && Date.now() - this.options.session.timestamp < MSG_TIMEOUT) {
@@ -232,7 +266,6 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.media = this.attachedFile
       data.msg_type = QQ.Message.Type.MEDIA
     }
-
     if (this.useMarkdown) {
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
@@ -247,45 +280,19 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         }
       }
     }
+    if (this.ark) {
+      data.content = ' '
+      delete data.markdown
+      data.msg_type = QQ.Message.Type.ARK
+      data.ark = this.ark
+    }
     const session = this.bot.session()
     session.type = 'send'
-    const send = async () => {
-      try {
-        console.log('send', data)
-        const resp = this.session.isDirect
-          ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
-          : await this.bot.internal.sendMessage(this.session.channelId, data)
-        if (resp.id && !resp.audit_id) {
-          session.messageId = resp.id
-          session.timestamp = new Date(resp.timestamp).valueOf()
-          session.channelId = this.session.channelId
-          session.guildId = this.session.guildId
-          session.app.emit(session, 'send', session)
-          this.results.push(session.event.message)
-        } else if (resp.audit_id && this.bot.config.intents & QQ.Intents.MESSAGE_AUDIT) {
-          try {
-            const auditData: QQ.MessageAudited = await this.audit(resp.audit_id)
-            session.messageId = auditData.message_id
-            session.app.emit(session, 'send', session)
-            this.results.push(session.event.message)
-          } catch (e) {
-            this.bot.logger.error(e)
-          }
-        }
-      } catch (e) {
-        if (!this.bot.http.isError(e)) throw e
-        this.errors.push(e)
-        if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
-          this.bot.logger.warn('%s retry message sending', this.session.cid)
-          this.retry = true
-          await send()
-        }
-      }
-    }
-    await send()
+    await this.sendMessage(data, session)
     this.content = ''
     this.attachedFile = null
     this.rows = []
+    this.ark = null
     this.retry = false
   }
 
@@ -501,6 +508,10 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.ensureMarkdown()
       const last = this.lastRow()
       last.push(this.decodeButton(attrs, children.join('')))
+    } else if (type.startsWith('ark')) {
+      await this.flush()
+      this.ark = parseQQArkElement(element)
+      await this.flush()
     } else if (type === 'message') {
       await this.flush()
       await this.render(children)

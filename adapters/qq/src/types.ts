@@ -359,8 +359,8 @@ export namespace Message {
     obj?: ArkObj[]
   }
   export interface ArkObj {
-    /** ark objkv 列表 */
-    objKv: ArkObjKv[]
+    /** ark obj_kv 列表 */
+    obj_kv: ArkObjKv[]
   }
   export interface ArkObjKv {
     key: string
@@ -453,9 +453,7 @@ export namespace Message {
   export interface Request {
     /** 文本内容 */
     content?: string
-    /** 消息类型
-     * 当发送 md，ark，embed 的时候 centent 字段需要填入随意内容，否则发送失败
-     */
+    /** 消息类型 */
     msg_type: Type
     markdown?: Markdown
     keyboard?: Partial<MessageKeyboard>
