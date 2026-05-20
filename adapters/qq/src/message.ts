@@ -412,6 +412,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     '~~': ['s', 'del'],
     '/': ['u', 'ins'],
     '`': ['code'],
+    '==': ['mark'],
   })
 
   async visit(element: h) {
