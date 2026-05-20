@@ -389,10 +389,27 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     })) as QQ.InlineKeyboardRow[]
   }
 
+  ensureMarkdown() {
+    if (!this.useMarkdown) {
+      this.content = escapeMarkdown(this.content)
+      this.useMarkdown = true
+    }
+  }
+
   async visit(element: h) {
-    const { type, attrs, children } = element
+    const { attrs, children } = element
+    const type = element.type.replace(/^qq:/, '')
     if (type === 'text') {
-      this.content += attrs.content
+      this.content += this.useMarkdown ? escapeMarkdown(attrs.content) : attrs.content
+    } else if (type === 'at') {
+      this.ensureMarkdown()
+      switch (attrs.type) {
+        case 'all':
+          this.content += `@everyone`
+          break
+        default:
+          this.content += `<@${attrs.id}>`
+      }
     } else if (type === 'passive') {
       if (attrs.messageId) this.passiveId = attrs.messageId
       if (attrs.seq) this.passiveSeq = Number(attrs.seq)
@@ -457,13 +474,16 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       if (!this.content.endsWith('\n')) this.content += '\n'
       await this.render(children)
       if (!this.content.endsWith('\n')) this.content += '\n'
+    } else if (type === 'markdown') {
+      this.ensureMarkdown()
+      await this.render(children)
     } else if (type === 'button-group') {
-      this.useMarkdown = true
+      this.ensureMarkdown()
       this.rows.push([])
       await this.render(children)
       this.rows.push([])
     } else if (type === 'button') {
-      this.useMarkdown = true
+      this.ensureMarkdown()
       const last = this.lastRow()
       last.push(this.decodeButton(attrs, children.join('')))
     } else if (type === 'message') {
