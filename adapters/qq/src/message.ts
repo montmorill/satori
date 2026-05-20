@@ -195,6 +195,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   private passiveSeq: number
   private passiveEventId: string
   private useMarkdown = false
+  private inMarkdown = 0
   private rows: QQ.Button[][] = []
   private attachedFile: QQ.Message.File.Response
   private retry = false
@@ -237,7 +238,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
-        content: escapeMarkdown(this.content) || ' ',
+        content: this.content,
       }
       if (this.rows.length) {
         data.keyboard = {
@@ -400,7 +401,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     const { attrs, children } = element
     const type = element.type.replace(/^qq:/, '')
     if (type === 'text') {
-      this.content += this.useMarkdown ? escapeMarkdown(attrs.content) : attrs.content
+      this.content += this.useMarkdown && !this.inMarkdown
+        ? escapeMarkdown(attrs.content) : attrs.content
     } else if (type === 'at') {
       this.ensureMarkdown()
       switch (attrs.type) {
@@ -476,7 +478,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       if (!this.content.endsWith('\n')) this.content += '\n'
     } else if (type === 'markdown') {
       this.ensureMarkdown()
+      this.inMarkdown++
       await this.render(children)
+      this.inMarkdown--
     } else if (type === 'button-group') {
       this.ensureMarkdown()
       this.rows.push([])
