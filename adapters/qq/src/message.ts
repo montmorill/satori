@@ -4,6 +4,7 @@ import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import { parseQQArkElement } from './ark'
 import probe from 'probe-image-size'
+import { isGeneratorObject } from 'node:util/types'
 
 export const escapeMarkdown = (val: string) =>
   val
@@ -191,6 +192,13 @@ export class QQGuildMessageEncoder<C extends Context = Context> extends MessageE
 
 const MSG_TIMEOUT = 5 * 60 * 1000 - 2000// 5 mins
 
+declare module '@satorijs/core' {
+  interface Session {
+    streamIndex?: number
+    streamMsgId?: string
+  }
+}
+
 export class QQMessageEncoder<C extends Context = Context> extends MessageEncoder<C, QQBot<C>> {
   private content: string = ''
   private passiveId: string
@@ -201,11 +209,13 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   private rows: QQ.Button[][] = []
   private attachedFile: QQ.Message.File.Response
   private ark: QQ.Message.Ark
+  private stream: QQ.Message.Stream
   private retry = false
   reference: string
 
   async sendMessage(data: QQ.Message.Request, session: Session) {
     try {
+      console.log(data)
       const resp = this.session.isDirect
         ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
         : await this.bot.internal.sendMessage(this.session.channelId, data)
@@ -267,6 +277,10 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.media = this.attachedFile
       data.msg_type = QQ.Message.Type.MEDIA
     }
+    if (this.stream) {
+      this.ensureMarkdown()
+      data.stream = this.stream
+    }
     if (this.useMarkdown) {
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
@@ -294,6 +308,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     this.attachedFile = null
     this.rows = []
     this.ark = null
+    this.stream = null
     this.retry = false
   }
 
@@ -533,6 +548,19 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     } else if (type === 'message') {
       await this.flush()
       await this.render(children)
+      await this.flush()
+    } else if (type === 'stream') {
+      await this.flush()
+      await this.render([h('markdown', ...children)])
+      this.session.streamIndex ??= 0
+      this.stream = {
+        state: attrs.done || attrs.finish
+          ? QQ.Message.Stream.InputState.DONE
+          : QQ.Message.Stream.InputState.GENERATING,
+        id: attrs.id,
+        index: Number(attrs.index),
+        reset: Boolean(attrs.reset),
+      }
       await this.flush()
     } else {
       for (const [delimiter, types] of QQMessageEncoder.MARKDOWN_MODIFIERS) {
