@@ -4,11 +4,9 @@ import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import { parseQQArkElement } from './ark'
 import probe from 'probe-image-size'
-import { isGeneratorObject } from 'node:util/types'
 
 export const escapeMarkdown = (val: string) =>
-  val
-    .replace(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
+  val.replace(/([\\`*_~\-(#!>])/g, '\\$&')
 
 export class QQGuildMessageEncoder<C extends Context = Context> extends MessageEncoder<C, QQGuildBot<C>> {
   private content: string = ''
@@ -215,7 +213,6 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
 
   async sendMessage(data: QQ.Message.Request, session: Session) {
     try {
-      console.log(data)
       const resp = this.session.isDirect
         ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
         : await this.bot.internal.sendMessage(this.session.channelId, data)
