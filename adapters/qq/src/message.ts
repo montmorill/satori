@@ -3,7 +3,6 @@ import { Context, Dict, h, MessageEncoder, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import { parseQQArkElement } from './ark'
-import probe from 'probe-image-size'
 
 export const escapeMarkdown = (val: string) =>
   val.replace(/([\\[\]`*_~\-(#!>])/g, '\\$&')
@@ -457,11 +456,6 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     } else if ((type === 'img' || type === 'image') && (attrs.src || attrs.url)) {
       if (this.useMarkdown) {
         let { alt = attrs.title, src = attrs.url, width, height, zoom = 1 } = attrs
-        if (this.bot.config.addImageSize && Number.isNaN(width + height)) {
-          const res = await probe(src)
-          width = res.width
-          height = res.height
-        }
         if (width && height) {
           width *= zoom
           height *= zoom
