@@ -6,7 +6,7 @@ import { parseQQArkElement } from './ark'
 import probe from 'probe-image-size'
 
 export const escapeMarkdown = (val: string) =>
-  val.replace(/([\\`*_~\-(#!>])/g, '\\$&')
+  val.replace(/([\\[\]`*_~\-(#!>])/g, '\\$&')
 
 export class QQGuildMessageEncoder<C extends Context = Context> extends MessageEncoder<C, QQGuildBot<C>> {
   private content: string = ''
