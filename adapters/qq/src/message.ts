@@ -8,6 +8,13 @@ import probe from 'probe-image-size'
 export const escapeMarkdown = (val: string) =>
   val.replace(/([\\[\]`*_~\-(#!>])/g, '\\$&')
 
+declare module '@satorijs/core' {
+  interface Session {
+    seq: number
+    streamId?: string
+  }
+}
+
 export class QQGuildMessageEncoder<C extends Context = Context> extends MessageEncoder<C, QQGuildBot<C>> {
   private content: string = ''
   private file: Blob
@@ -242,9 +249,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     this.trimButtons()
     let msg_id: string, msg_seq: number, event_id: string
     if (this.options?.session?.messageId && Date.now() - this.options.session.timestamp < MSG_TIMEOUT) {
-      this.options.session['seq'] ||= 0
+      this.options.session.seq ||= 0
       msg_id = this.options.session.messageId
-      msg_seq = ++this.options.session['seq']
+      msg_seq = ++this.options.session.seq
     } else if (this.options?.session?.qq['id'] && Date.now() - this.options.session.timestamp < MSG_TIMEOUT) {
       event_id = this.options.session.qq['id']
     }
@@ -294,6 +301,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     const session = this.bot.session()
     session.type = 'send'
     await this.sendMessage(data, session)
+    if (this.stream && session.messageId) {
+      this.options.session.streamId = session.messageId
+    }
     this.content = ''
     this.attachedFile = null
     this.rows = []
@@ -546,8 +556,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         state: attrs.done || attrs.finish
           ? QQ.Message.Stream.InputState.DONE
           : QQ.Message.Stream.InputState.GENERATING,
-        id: attrs.id,
-        index: Number(attrs.index),
+        id: this.session.streamId,
+        index: this.session.seq,
         reset: Boolean(attrs.reset),
       }
       await this.flush()
