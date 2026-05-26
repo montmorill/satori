@@ -5,7 +5,27 @@ import { QQGuildBot } from './bot/guild'
 import { parseQQArkElement } from './ark'
 
 export const escapeMarkdown = (val: string) =>
-  val.replace(/([\\[\]`*_~\-(#!>])/g, '\\$&')
+  val.replace(/([\\`*_~\-(#!>])/g, '\\$&')
+
+export function inlinecmd({
+  text,
+  show,
+  enter = false,
+  reply = false,
+}: {
+  text: string
+  show?: string
+  enter?: boolean
+  reply?: boolean
+}) {
+  const command = encodeURIComponent(text)
+    .replaceAll('(', '%28')
+    .replaceAll(')', '%29')
+  return `[${show || text}](mqqapi://aio/inlinecmd?${Object
+    .entries({ command, reply, enter })
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&')})`
+}
 
 declare module '@satorijs/core' {
   interface Session {
@@ -211,6 +231,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   reference: string
 
   async sendMessage(data: QQ.Message.Request, session: Session) {
+    console.log(data)
     try {
       const resp = this.session.isDirect
         ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
