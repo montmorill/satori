@@ -231,7 +231,6 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   reference: string
 
   async sendMessage(data: QQ.Message.Request, session: Session) {
-    console.log(data)
     try {
       const resp = this.session.isDirect
         ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
