@@ -240,6 +240,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         content: this.content,
       }
       if (this.rows.length) {
+        data.markdown.content ||= ' '
         data.keyboard = {
           content: {
             rows: this.exportButtons(),
@@ -452,7 +453,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     })) as QQ.InlineKeyboardRow[]
   }
 
-  ensureMarkdown() {
+  async ensureMarkdown() {
+    if (this.attachedFile) await this.flush()
     if (!this.useMarkdown) {
       this.content = escapeMarkdown(this.content)
       this.useMarkdown = true
@@ -534,19 +536,17 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
       if (!this.content.endsWith('\n')) this.content += '\n'
     } else if (type === 'qq:markdown') {
-      if (this.attachedFile)
-        await this.flush()
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       this.inMarkdown++
       await this.render(children)
       this.inMarkdown--
     } else if (type === 'button-group') {
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       this.rows.push([])
       await this.render(children)
       this.rows.push([])
     } else if (type === 'button') {
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       const last = this.lastRow()
       last.push(this.decodeButton(attrs, children.join('')))
     } else if (type === 'message') {
