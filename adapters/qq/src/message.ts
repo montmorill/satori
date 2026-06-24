@@ -299,7 +299,10 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.ensureMarkdown()
       data.stream = this.stream
     }
-    if (this.useMarkdown) {
+    if (this.attachedFile && this.useMarkdown) {
+      this.bot.logger.warn('nested file in markdown is weird')
+    }
+    else if (this.useMarkdown) {
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
@@ -608,6 +611,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
       if (!this.content.endsWith('\n')) this.content += '\n'
     } else if (type === 'markdown') {
+      if (this.attachedFile)
+        await this.flush()
       this.ensureMarkdown()
       this.inMarkdown++
       await this.render(children)
