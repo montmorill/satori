@@ -233,12 +233,11 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.media = this.attachedFile
       data.msg_type = QQ.Message.Type.MEDIA
     }
-    
     if (this.useMarkdown) {
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
-        content: this.content,
+        content: data.content,
       }
       if (this.rows.length) {
         data.keyboard = {
@@ -535,6 +534,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
       if (!this.content.endsWith('\n')) this.content += '\n'
     } else if (type === 'qq:markdown') {
+      if (this.attachedFile)
+        await this.flush()
       this.ensureMarkdown()
       this.inMarkdown++
       await this.render(children)
