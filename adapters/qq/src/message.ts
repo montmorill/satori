@@ -237,7 +237,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
-        content: data.content,
+        content: this.content,
       }
       if (this.rows.length) {
         data.keyboard = {
