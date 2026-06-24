@@ -5,7 +5,8 @@ import { QQGuildBot } from './bot/guild'
 import { parseQQArkElement } from './ark'
 
 export const escapeMarkdown = (val: string) =>
-  val.replace(/([\\`*_~\-(#!>])/g, '\\$&')
+  val.replace(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
+  // TODO: fix `\(\LaTeX\)`
 
 export function inlinecmd({
   text,
@@ -443,9 +444,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     '**': ['b', 'strong'],
     '_': ['i', 'em'],
     '~~': ['s', 'del'],
-    '/': ['u', 'ins'],
     '`': ['code'],
-    '==': ['mark'],
+    // '/': ['u', 'ins'],
+    // '==': ['mark'],
   })
 
   async visit(element: h) {
@@ -475,15 +476,11 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.flush()
     } else if ((type === 'img' || type === 'image') && (attrs.src || attrs.url)) {
       if (this.useMarkdown) {
-        let { alt = attrs.title, src = attrs.url, width, height, zoom = 1 } = attrs
-        if (width && height) {
-          width *= zoom
-          height *= zoom
+        let { alt = attrs.title, src = attrs.url, width, height } = attrs
+        if (width && height)
           alt += ` #${width}px #${height}px`
-        }
         this.content += `![${alt}](${src})`
       } else {
-        // TODO: 处理 image+markdown 情况
         await this.flush()
         const data = await this.sendFile(type, attrs)
         if (data) this.attachedFile = data
