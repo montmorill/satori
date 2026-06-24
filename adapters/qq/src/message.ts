@@ -319,6 +319,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         content: this.content,
       }
       if (this.rows.length) {
+        data.markdown.content ||= ' '
         data.keyboard = {
           content: {
             rows: this.exportButtons(),
