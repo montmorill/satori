@@ -524,13 +524,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         ? escapeMarkdown(attrs.content) : attrs.content
     } else if (type === 'at') {
       this.ensureMarkdown()
-      switch (attrs.type) {
-        case 'all':
-          this.content += `@everyone`
-          break
-        default:
-          this.content += `<@${attrs.id}>`
-      }
+      if (attrs.type === 'all') this.content += `@everyone`
+      else if (attrs.id) this.content += `<@${attrs.id}>`
     } else if (type === 'emoji') {
       // TODO: emoji id 和 Unicode 码点似乎不全是对应的，可能需要手动映射
       // this.content += String.fromCharCode(20, attrs.id)
