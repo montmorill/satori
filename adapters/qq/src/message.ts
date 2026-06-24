@@ -454,7 +454,10 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   }
 
   async ensureMarkdown() {
-    if (this.attachedFile) await this.flush()
+    if (this.attachedFile) {
+      this.useMarkdown = false
+      await this.flush()
+    }
     if (!this.useMarkdown) {
       this.content = escapeMarkdown(this.content)
       this.useMarkdown = true
