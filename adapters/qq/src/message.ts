@@ -532,7 +532,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
           this.content += `<@${attrs.id}>`
       }
     } else if (type === 'emoji') {
-      // FIXME: emoji id 和 Unicode 码点似乎不全是对应的，可能需要手动映射
+      // TODO: emoji id 和 Unicode 码点似乎不全是对应的，可能需要手动映射
       // this.content += String.fromCharCode(20, attrs.id)
     } else if (type === 'passive') {
       if (attrs.messageId) this.passiveId = attrs.messageId
