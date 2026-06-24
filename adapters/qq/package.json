@@ -1,7 +1,7 @@
 {
-  "name": "@satorijs/adapter-qq",
+  "name": "@montmorill/koishi-plugin-adapter-qq",
   "description": "QQ Adapter for Satorijs",
-  "version": "4.13.0",
+  "version": "4.14.0",
   "type": "module",
   "main": "lib/index.cjs",
   "typings": "lib/index.d.ts",
@@ -9,15 +9,15 @@
     "lib",
     "src"
   ],
-  "author": "Shigma <shigma10826@gmail.com>",
+  "author": "montmorill <montmorill@outlook.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/satorijs/satori.git",
+    "url": "git+https://github.com/montmorill/satori.git",
     "directory": "adapters/qq"
   },
   "bugs": {
-    "url": "https://github.com/satorijs/satori/issues"
+    "url": "https://github.com/montmorill/satori/issues"
   },
   "homepage": "https://koishi.chat/plugins/adapter/qq.html",
   "keywords": [
