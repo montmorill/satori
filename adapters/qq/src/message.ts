@@ -305,13 +305,6 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.media = this.attachedFile
       data.msg_type = QQ.Message.Type.MEDIA
     }
-    if (this.stream) {
-      this.ensureMarkdown()
-      data.stream = this.stream
-    }
-    if (this.attachedFile && this.useMarkdown) {
-      this.bot.logger.warn('nested file in markdown is weird')
-    }
     else if (this.useMarkdown) {
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
@@ -326,6 +319,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
           },
         }
       }
+    }
+    if (this.stream) {
+      data.stream = this.stream
     }
     if (this.ark) {
       data.content = ' '
@@ -652,7 +648,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.flush()
     } else if (type === 'stream') {
       await this.flush()
-      await this.render([h('markdown', ...children)])
+      await this.ensureMarkdown()
+      await this.render(children)
       this.stream = {
         state: attrs.done || attrs.finish
           ? QQ.Message.Stream.InputState.DONE
