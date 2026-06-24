@@ -1,5 +1,5 @@
 import * as QQ from './types'
-import { Context, Dict, h, MessageEncoder, Session } from '@satorijs/core'
+import { Context, Dict, h, MessageEncoder, pick, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
@@ -7,26 +7,36 @@ import { parseQQArkElement } from './ark'
 
 export const escapeMarkdown = (val: string) =>
   val.replace(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
-  // TODO: fix `\(\LaTeX\)`
+// TODO: fix `\(\LaTeX\)`
+
+interface InlineCmdOption {
+  text: string
+  show?: string
+  enter?: boolean
+  reply?: boolean
+}
 
 export function inlinecmd({
   text,
   show,
   enter = false,
   reply = false,
-}: {
-  text: string
-  show?: string
-  enter?: boolean
-  reply?: boolean
-}) {
+}: InlineCmdOption) {
+  return `[${show || text}](${inlinecmdUrl({ text, reply, enter })})`
+}
+
+export function inlinecmdUrl({
+  text,
+  reply = false,
+  enter = false
+}: Omit<InlineCmdOption, 'show'>) {
   const command = encodeURIComponent(text)
     .replaceAll('(', '%28')
     .replaceAll(')', '%29')
-  return `[${show || text}](mqqapi://aio/inlinecmd?${Object
-    .entries({ command, reply, enter })
-    .map(([key, value]) => `${key}=${value}`)
-    .join('&')})`
+  return `mqqapi://aio/inlinecmd?` +
+    Object.entries({ command, reply, enter })
+      .map(([key, value]) => `${key}=${value}`)
+      .join('&')
 }
 
 declare module '@satorijs/core' {
@@ -526,9 +536,15 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.ensureMarkdown()
       if (attrs.type === 'all') this.content += `@everyone`
       else if (attrs.id) this.content += `<@${attrs.id}>`
-    } else if (type === 'a' && attrs.href) {
+    } else if (type === 'inlinecmd' || type === 'a' && attrs.href) {
+      this.ensureMarkdown()
       this.content += `[`
+      const length = this.content.length
       await this.render(children)
+      if (type === 'inlinecmd') {
+        attrs.text ??= this.content.slice(length)
+        attrs.href = inlinecmdUrl(attrs as InlineCmdOption)
+      }
       this.content += `](${attrs.href})`
     } else if (type === 'emoji') {
       // TODO: emoji id 和 Unicode 码点似乎不全是对应的，可能需要手动映射
