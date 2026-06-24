@@ -3,7 +3,6 @@ import { Context, Dict, h, MessageEncoder, pick, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
-import { parseQQArkElement } from './ark'
 
 export const escapeMarkdown = (val: string) =>
   val.replace(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
@@ -487,6 +486,19 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     return result
   }
 
+  decodeArkKv(attrs: Dict<string | Dict<string>[]>): QQ.Message.ArkKv[] {
+    return Object.entries(attrs)
+      .flatMap(([key, value]): QQ.Message.ArkKv[] => {
+        key = `#${key.toUpperCase()}#`;
+        return typeof value === 'string' ? [{ key, value }] : [{
+          key, obj: value.map(item => ({
+            obj_kv: Object.entries(item)
+              .map(([key, value]) => ({ key, value }))
+          }))
+        }];
+      })
+  }
+
   lastRow() {
     if (!this.rows.length) this.rows.push([])
     let last = this.rows[this.rows.length - 1]
@@ -640,7 +652,10 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       last.push(this.decodeButton(attrs, children.join('')))
     } else if (type.startsWith('ark')) {
       await this.flush()
-      this.ark = parseQQArkElement(element)
+      this.ark = {
+        template_id: type.slice(3) || attrs.id,
+        kv: this.decodeArkKv(attrs),
+      }
       await this.flush()
     } else if (type === 'message') {
       await this.flush()
