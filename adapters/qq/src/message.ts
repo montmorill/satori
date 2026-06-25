@@ -410,7 +410,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
         this.bot.logger.warn('%s retry message sending', this.session.cid)
         this.retry = true
-        await this.sendFile(type, attrs)
+        return await this.sendFile(type, attrs)
       }
     }
     this.retry = false
