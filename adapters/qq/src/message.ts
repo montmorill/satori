@@ -664,7 +664,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     } else if (type === 'stream') {
       await this.flush()
       await this.ensureMarkdown()
+      this.inMarkdown++
       await this.render(children)
+      this.inMarkdown--
       this.stream = {
         state: attrs.done || attrs.finish
           ? QQ.Message.Stream.InputState.DONE
