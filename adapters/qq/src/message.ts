@@ -249,7 +249,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       if (resp.id && !resp.audit_id) {
         session.messageId = resp.id
         session.timestamp = new Date(resp.timestamp).valueOf()
-        session.channelId = session.guildId = this.session.channelId || this.session.guildId
+        session.channelId = this.session.channelId
+        session.guildId = this.session.guildId
         session.app.emit(session, 'send', session)
         this.results.push(session.event.message)
       } else if (resp.audit_id && this.bot.config.intents & QQ.Intents.MESSAGE_AUDIT) {
