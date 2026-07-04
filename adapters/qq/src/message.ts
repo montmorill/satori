@@ -510,7 +510,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   }
 
   trimButtons() {
-    if (this.rows.length && this.rows[this.rows.length - 1].length === 0) this.rows.pop()
+    this.rows = this.rows.filter(v => v.length > 0)
   }
 
   exportButtons() {
