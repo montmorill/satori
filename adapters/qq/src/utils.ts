@@ -103,6 +103,8 @@ export function decodeGroupMessage(
   message: Universal.Message = {},
   payload: Universal.MessageLike = message,
 ) {
+  if (data.message_type === QQ.Message.Type.QUOTE) // fuck tencent
+    data.content = data.content.replace(/^(<@[0-9A-F]{32}>) \1/, '$1')
   message.id = data.id
   const attachedFace = new Set<number>() // attachments 下标
   message.elements = decodeGroupMessageContent(data.content, data.attachments ?? [], attachedFace)
