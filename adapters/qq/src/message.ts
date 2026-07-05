@@ -297,7 +297,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     }
     if (this.reference) {
       data.message_reference = {
-        message_id: this.reference,
+        message_id: this.bot.msgIdxMap.get(this.reference) || this.reference,
       }
     }
     if (this.attachedFile) {
