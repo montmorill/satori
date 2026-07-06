@@ -5,7 +5,7 @@ import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
 
 export const escapeMarkdown = (val: string) =>
-  val.replace(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
+  val.replaceAll(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&').replaceAll(/\n/g, '\n\n')
 // TODO: fix `\(\LaTeX\)`
 
 interface InlineCmdOption {
