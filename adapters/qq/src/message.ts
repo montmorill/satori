@@ -629,7 +629,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }
       await this.flush()
     } else if (type === 'br') {
-      this.content += '\n'
+      this.content += escapeMarkdown('\n')
     } else if (type === 'p') {
       if (!this.content.endsWith('\n')) this.content += '\n'
       await this.render(children)
