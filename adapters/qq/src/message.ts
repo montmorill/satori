@@ -5,7 +5,7 @@ import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
 
 export const escapeMarkdown = (val: string) =>
-  val.replaceAll(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&').replaceAll(/\n/g, '\n\n')
+  val.replaceAll(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
 // TODO: fix `\(\LaTeX\)`
 
 interface InlineCmdOption {
@@ -629,7 +629,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }
       await this.flush()
     } else if (type === 'br') {
-      this.content += escapeMarkdown('\n')
+      this.content += '\n'
     } else if (type === 'p') {
       if (!this.content.endsWith('\n')) this.content += '\n'
       await this.render(children)
