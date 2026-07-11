@@ -308,7 +308,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
-        content: this.content,
+        content: this.content.replaceAll('* *', '*&nbsp;*'),
       }
       if (this.rows.length) {
         data.markdown.content ||= ' '
