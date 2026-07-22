@@ -106,51 +106,29 @@ export function decodeGroupMessage(
 ) {
   message.id = data.id
 
-  if (data.message_type === QQ.Message.Type.FORWARD) {
-    const messages = []
-    let buffer = data.content, counter = 1
-    console.log(buffer)
-    let match = buffer.match(/^\[(.*)的聊天记录\]\n/m)
-    buffer = buffer.slice(match[0].length - 1)
-    while (match = buffer.match(new RegExp(`\n=== 消息 ${counter++} ===\n`))) {
-      buffer = buffer.slice(match[0].length)
-      const [fullmatch, content, 发送者] = buffer.match(/^\[消息内容\] ((?:.|\n)+?)\n\[发送者\] (.+)\n/m)
-      buffer = buffer.slice(fullmatch.length)
-      const attrs = { 发送者 }
-      while (match = buffer.match(/^\[(.+)\] (.+)\n/)) {
-        attrs[match[1]] = match[2]
-        buffer = buffer.slice(match[0].length)
-      }
-      messages.push(h('message', attrs, content))
-    }
-    console.log(inspect(messages, false, null, true))
-    message.elements = [h('message', { forward: true }, messages)]
+  if (data.message_type === QQ.Message.Type.QUOTE) // fuck tencent
+    data.content = data.content.replace(/^(<@[0-9A-F]{32}>) \1/, '$1')
+  const attachedFace = new Set<number>() // attachments 下标
+  message.elements = decodeGroupMessageContent(data.content, data.attachments ?? [], attachedFace)
+  const mentionMap = new Map<string, h>()
+  for (const mention of data.mentions ?? []) {
+    // 这个 id 和 bot selfId 不一样
+    if (mention.is_you && mention.scope === 'single') mentionMap.set(mention.id, h.at(bot.selfId))
+    else if (mention.scope === 'all') mentionMap.set('all', h.at({ type: 'all' }))
+    else mentionMap.set(mention.id, h.at(mention.id))
   }
-  else {
-    if (data.message_type === QQ.Message.Type.QUOTE) // fuck tencent
-      data.content = data.content.replace(/^(<@[0-9A-F]{32}>) \1/, '$1')
-    const attachedFace = new Set<number>() // attachments 下标
-    message.elements = decodeGroupMessageContent(data.content, data.attachments ?? [], attachedFace)
-    const mentionMap = new Map<string, h>()
-    for (const mention of data.mentions ?? []) {
-      // 这个 id 和 bot selfId 不一样
-      if (mention.is_you && mention.scope === 'single') mentionMap.set(mention.id, h.at(bot.selfId))
-      else if (mention.scope === 'all') mentionMap.set('all', h.at({ type: 'all' }))
-      else mentionMap.set(mention.id, h.at(mention.id))
-    }
-    message.elements = h.transform(message.elements, {
-      text: (attrs) => {
-        return attrs.content.split(/(<@(?:[0-9a-fA-F]{32}|all)>)/g)
-          .filter(Boolean)
-          .map((part) => {
-            const match = part.match(/^<@([0-9a-fA-F]{32}|all)>$/)
-            if (match) return mentionMap.get(match[1]) || h.text(part)
-            return h.text(part)
-          })
-      },
-    })
-    message.elements.push(...decodeAttachments(data.attachments ?? [], attachedFace))
-  }
+  message.elements = h.transform(message.elements, {
+    text: (attrs) => {
+      return attrs.content.split(/(<@(?:[0-9a-fA-F]{32}|all)>)/g)
+        .filter(Boolean)
+        .map((part) => {
+          const match = part.match(/^<@([0-9a-fA-F]{32}|all)>$/)
+          if (match) return mentionMap.get(match[1]) || h.text(part)
+          return h.text(part)
+        })
+    },
+  })
+  message.elements.push(...decodeAttachments(data.attachments ?? [], attachedFace))
 
   if (data.message_type === QQ.Message.Type.QUOTE) {
     // msg_elements[0] 无 mentions；有 author, content 会有 <faceType ...>
