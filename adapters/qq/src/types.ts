@@ -351,6 +351,8 @@ export namespace Message {
     ARK = 3,
     EMBED = 4,
     MEDIA = 7,
+    PARALLEL = 101,
+    FORWARD = 102,
     QUOTE = 103,
   }
   export interface Ark {
