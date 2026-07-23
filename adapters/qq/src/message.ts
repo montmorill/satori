@@ -1,5 +1,5 @@
 import * as QQ from './types'
-import { Context, Dict, h, MessageEncoder, pick, Session } from '@satorijs/core'
+import { Context, Dict, h, MessageEncoder, omit, pick, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
@@ -654,7 +654,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.flush()
       this.ark = {
         template_id: type.slice(3) || attrs.id,
-        kv: this.decodeArkKv(attrs),
+        kv: attrs.kv || this.decodeArkKv(omit(attrs, ['id'])),
       }
       await this.flush()
     } else if (type === 'message') {
