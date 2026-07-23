@@ -427,21 +427,23 @@ export namespace Message {
     markdown?: Markdown
   }
   export interface Stream {
+    mode: Stream.InputMode;
     state: Stream.InputState;
     id?: string;
     index?: number;
-    reset?: boolean;
   }
   export namespace Stream {
     export enum InputMode {
+      APPEND = 'append',
       REPLACE = 'replace',
     }
     export enum InputState {
-      NOT_STREAM = 0,
+      // NOT_STREAM = 0,
       GENERATING = 1,
       DONE = 10,
     }
     export enum ContentType {
+      TEXT = 'text',
       MARKDOWN = 'markdown',
     }
     export interface Request {
@@ -463,6 +465,8 @@ export namespace Message {
       msg_seq: number
       /** 同一条流式会话内的发送索引，从 0 开始，每次发送前递增；新流式会话重新从 0 开始 */
       index: number
+      /** 是否为召回消息。true 时不校验 msg_id/event_id 有效期 */
+      is_weakup?: boolean
     }
   }
   export interface Request {
