@@ -491,23 +491,56 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     }
   }
 
+
+  static buttonStyleMap = {
+    default: 0,
+    primary: 1,
+    ghost: 2,
+    danger: 3,
+    filled: 4
+  }
+
+  static buttonActionMap = {
+    link: 0,
+    action: 1,
+    input: 2,
+    scheme: 3,
+  }
+
   decodeButton(attrs: Dict, label: string) {
+    const visited = attrs['qq:visited'] ?? attrs['visited']
+    const reply = attrs['qq:reply'] ?? attrs['reply']
+    const enter = attrs['qq:enter'] ?? attrs['enter']
+    const anchor = attrs['qq:anchor'] ?? attrs['anchor']
+    const type = attrs['qq:type'] != null ? +attrs['qq:type'] :
+      QQMessageEncoder.buttonActionMap[attrs.type] ?? (
+        attrs.text ? QQMessageEncoder.buttonActionMap.input
+          : attrs.href ? attrs.href.startsWith('http')
+            ? QQMessageEncoder.buttonActionMap.link
+            : QQMessageEncoder.buttonActionMap.scheme
+            : QQMessageEncoder.buttonActionMap.action
+      )
     const result: QQ.Button = {
       id: attrs.id,
       render_data: {
         label,
-        visited_label: label,
-        style: attrs.class === 'primary' ? 1 : 0,
+        ...visited === true ? { visited_label: label }
+          : visited ? { visited_label: visited } : {},
+        style: attrs['qq:style'] != null ? +attrs['qq:style'] :
+          QQMessageEncoder.buttonStyleMap[attrs.class ?? attrs.style] ?? 0,
       },
       action: {
-        type: attrs.type === 'input' ? 2
-          : (attrs.type === 'link' ? 0 : 1),
-        permission: {
-          type: 2,
-        },
-        data: attrs.type === 'input'
-          ? attrs.text : attrs.type === 'link'
-            ? attrs.href : attrs.id,
+        type,
+        permission: attrs['qq:permission'] ||
+          { type: attrs.permission === 'admin' ? 1 : 2 },
+        data: attrs['qq:data'] != null ? attrs['qq:data'] :
+          type === QQMessageEncoder.buttonActionMap.input ? attrs.text
+            : type === QQMessageEncoder.buttonActionMap.link
+              || type === QQMessageEncoder.buttonActionMap.scheme ? attrs.href
+              : attrs.id,
+        ...reply ? { reply } : {},
+        ...enter ? { enter } : {},
+        ...anchor != null ? { anchor: +anchor } : {},
       },
     }
     return result
