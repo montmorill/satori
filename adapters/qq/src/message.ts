@@ -41,6 +41,7 @@ export function inlinecmdUrl({
 declare module '@satorijs/core' {
   interface Session {
     seq: number
+    streamIndex?: number
     streamId?: string
   }
 }
@@ -237,7 +238,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   private rows: QQ.Button[][] = []
   private attachedFile: QQ.Message.File.Response
   private ark: QQ.Message.Ark
-  private stream: QQ.Message.Stream
+  private stream: QQ.Message.Stream.Request
   private retry = false
   reference: string
 
@@ -270,6 +271,28 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         this.bot.logger.warn('%s retry message sending', this.session.cid)
         this.retry = true
         await this.sendMessage(data, session)
+      }
+    }
+  }
+
+  async sendStreamMessage(data: QQ.Message.Stream.Request, session: Session) {
+    try {
+      const resp = await this.bot.internal.sendPrivateStreamMessage(this.session.channelId, data)
+      if (resp.id) {
+        session.messageId = resp.id
+        session.timestamp = new Date(resp.timestamp).valueOf()
+        session.channelId = this.session.channelId
+        session.guildId = this.session.guildId
+        session.app.emit(session, 'send', session)
+        this.results.push(session.event.message)
+      }
+    } catch (e) {
+      if (!this.bot.http.isError(e)) throw e
+      this.errors.push(e)
+      if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
+        this.bot.logger.warn('%s retry message sending', this.session.cid)
+        this.retry = true
+        await this.sendStreamMessage(data, session)
       }
     }
   }
@@ -319,18 +342,22 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         }
       }
     }
-    if (this.stream) {
-      data.stream = this.stream
-    }
     if (this.ark) {
       data.content = ' '
-      delete data.markdown
+      delete data.markdown // noop
       data.msg_type = QQ.Message.Type.ARK
       data.ark = this.ark
     }
     const session = this.bot.session()
     session.type = 'send'
-    await this.sendMessage(data, session)
+    if (this.stream && this.session.isDirect)
+      await this.sendStreamMessage(Object.assign(this.stream, {
+        msg_id,
+        msg_seq,
+        event_id,
+      }), session)
+    else
+      await this.sendMessage(data, session)
     if (this.stream && session.messageId) {
       this.options.session.streamId = session.messageId
     }
@@ -667,18 +694,34 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.inMarkdown++
       await this.render(children)
       this.inMarkdown--
-      if (attrs.reset || attrs.head || attrs.start || attrs.init
-        || attrs.done || attrs.tail || attrs.end || attrs.finish)
-        this.session.streamId = undefined
+
+      const reset = attrs.reset || attrs.head || attrs.start || !this.session.streamId
+      const done = attrs.done || attrs.tail || attrs.end || attrs.finish
+      if (reset) {
+        this.options.session.streamIndex = 0
+        this.options.session.streamId = undefined
+      }
       this.stream = {
-        mode: attrs.replace ? QQ.Message.Stream.InputMode.REPLACE : QQ.Message.Stream.InputMode.APPEND,
-        state: attrs.done || attrs.tail || attrs.end || attrs.finish
+        input_mode: attrs.replace
+          ? QQ.Message.Stream.InputMode.REPLACE
+          : QQ.Message.Stream.InputMode.APPEND,
+        input_state: done
           ? QQ.Message.Stream.InputState.DONE
           : QQ.Message.Stream.InputState.GENERATING,
-        id: this.session.streamId,
-        index: this.session.seq,
+        index: this.options.session.streamIndex++,
+        content_type: this.useMarkdown
+          || true // 整条流式消息 content_type 必须相同，使用 markdown 可以部分兼容 text。
+          ? QQ.Message.Stream.ContentType.MARKDOWN
+          : QQ.Message.Stream.ContentType.TEXT,
+        content_raw: this.content,
+        stream_msg_id: this.session.streamId,
+        msg_seq: this.session.seq,
       }
       await this.flush()
+      if (done) {
+        delete this.options.session.streamIndex
+        delete this.options.session.streamId
+      }
     } else {
       for (const [delimiter, types] of QQMessageEncoder.MARKDOWN_MODIFIERS) {
         if (types.includes(type)) {

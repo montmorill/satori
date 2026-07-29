@@ -456,9 +456,9 @@ export namespace Message {
       /** markdown 内容 */
       content_raw: string
       /** 事件 ID */
-      event_id: string
+      event_id?: string
       /** 原始消息 ID */
-      msg_id: string
+      msg_id?: string
       /** 流式消息 ID，首次发送后返回，后续分片需携带 */
       stream_msg_id?: string
       /** 递增序号 */
