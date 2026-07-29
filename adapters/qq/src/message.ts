@@ -667,9 +667,12 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.inMarkdown++
       await this.render(children)
       this.inMarkdown--
+      if (attrs.reset || attrs.head || attrs.start || attrs.init
+        || attrs.done || attrs.tail || attrs.end || attrs.finish)
+        this.session.streamId = undefined
       this.stream = {
         mode: attrs.replace ? QQ.Message.Stream.InputMode.REPLACE : QQ.Message.Stream.InputMode.APPEND,
-        state: attrs.done || attrs.finish
+        state: attrs.done || attrs.tail || attrs.end || attrs.finish
           ? QQ.Message.Stream.InputState.DONE
           : QQ.Message.Stream.InputState.GENERATING,
         id: this.session.streamId,
