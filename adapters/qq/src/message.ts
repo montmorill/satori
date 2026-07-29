@@ -233,6 +233,8 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   private passiveId: string
   private passiveSeq: number
   private passiveEventId: string
+  // private markdownFontSize: QQ.Message.Markdown['style']['main_font_size']
+  private markdownLayout: QQ.Message.Markdown['style']['layout']
   private useMarkdown = false
   private inMarkdown = 0
   private keyboardFontSize: string
@@ -334,6 +336,12 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       delete data.content
       data.markdown = {
         content: this.content,
+        ...this.markdownLayout ? {
+          style: {
+            // main_font_size: this.markdownFontSize,
+            layout: this.markdownLayout,
+          }
+        } : {},
       }
       if (this.keyboardRows.length) {
         data.markdown.content ||= ' '
@@ -728,6 +736,10 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
       if (!this.content.endsWith('\n')) this.content += '\n'
     } else if (type === 'markdown') {
+      if (attrs['qq:layout'])
+        this.markdownLayout = attrs['qq:layout']
+      if (attrs['qq:fullwidth'] || attrs.fullwidth)
+        this.markdownLayout = 'hide_avatar_and_center'
       if (this.attachedFile)
         await this.flush()
       this.ensureMarkdown()
@@ -760,9 +772,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     } else if (type === 'stream') {
       await this.flush()
       await this.ensureMarkdown()
-      this.inMarkdown++
-      await this.render(children)
-      this.inMarkdown--
+      await this.render([h('markdown', attrs, children)])
 
       const reset = attrs.reset || attrs.head || attrs.start || !this.session.streamId
       const done = attrs.done || attrs.tail || attrs.end || attrs.finish

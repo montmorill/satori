@@ -400,6 +400,10 @@ export namespace Message {
     params?: MarkdownParam[]
     /** 原生 markdown 内容，与 template_id 和 params 参数互斥，参数都传值将报错。 */
     content?: string
+    style?: {
+      // main_font_size?: 'small' | 'middle' | 'large' // small 没用 middle large 服务器 500
+      layout?: 'hide_avatar_and_center'
+    }
   }
   export interface MarkdownParam {
     /** markdown 模版 key */
