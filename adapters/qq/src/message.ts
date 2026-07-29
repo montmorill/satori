@@ -524,8 +524,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       id: attrs.id,
       render_data: {
         label,
-        ...visited === true ? { visited_label: label }
-          : visited ? { visited_label: visited } : {},
+        visited_label: visited || label, // 电脑端不加 visited_label 点完就没了。
+        // ...visited === true ? { visited_label: label }
+        //   : visited ? { visited_label: visited } : {},
         style: attrs['qq:style'] != null ? +attrs['qq:style'] :
           QQMessageEncoder.buttonStyleMap[attrs.class ?? attrs.style] ?? 0,
       },
