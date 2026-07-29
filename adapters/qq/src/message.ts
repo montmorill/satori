@@ -498,14 +498,14 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     ghost: 2,
     danger: 3,
     filled: 4
-  }
+  } as const
 
   static buttonActionMap = {
     link: 0,
     action: 1,
     input: 2,
     scheme: 3,
-  }
+  } as const
 
   decodeButton(attrs: Dict, label: string) {
     const visited = attrs['qq:visited'] ?? attrs['visited']
