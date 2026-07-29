@@ -235,7 +235,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   private passiveEventId: string
   private useMarkdown = false
   private inMarkdown = 0
-  private rows: QQ.Button[][] = []
+  private keyboardFontSize: string
+  private keyboardRows: QQ.Button[][] = []
+  private promptRows: QQ.Button[][] = []
   private attachedFile: QQ.Message.File.Response
   private ark: QQ.Message.Ark
   private stream: QQ.Message.Stream.Request
@@ -298,7 +300,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   }
 
   async flush() {
-    if (!this.content.trim() && !this.rows.flat().length && !this.attachedFile && !this.ark) return
+    if (!this.content.trim() && !this.keyboardRows.flat().length && !this.promptRows.flat().length && !this.attachedFile && !this.ark) return
     this.trimButtons()
     let msg_id: string, msg_seq: number, event_id: string
     if (this.options?.session?.messageId && Date.now() - this.options.session.timestamp < MSG_TIMEOUT) {
@@ -333,12 +335,23 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.markdown = {
         content: this.content,
       }
-      if (this.rows.length) {
+      if (this.keyboardRows.length) {
         data.markdown.content ||= ' '
         data.keyboard = {
           content: {
+            ...this.keyboardFontSize ? { style: { font_size: this.keyboardFontSize } } : {},
             rows: this.exportButtons(),
           },
+        }
+      }
+      if (this.promptRows.length) {
+        data.markdown.content ||= ' '
+        data.prompt_keyboard = {
+          keyboard: {
+            content: {
+              rows: this.exportButtons(true),
+            },
+          }
         }
       }
     }
@@ -358,12 +371,15 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }), session)
     else
       await this.sendMessage(data, session)
+    this.bot.ctx.logger.info(data)
     if (this.stream && session.messageId) {
       this.options.session.streamId = session.messageId
     }
     this.content = ''
     this.attachedFile = null
-    this.rows = []
+    this.keyboardFontSize = null
+    this.keyboardRows = []
+    this.promptRows = []
     this.ark = null
     this.stream = null
     this.retry = false
@@ -495,16 +511,17 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
   static buttonStyleMap = {
     default: 0,
     primary: 1,
-    ghost: 2,
+    suggest: 2,
     danger: 3,
     filled: 4
   } as const
 
   static buttonActionMap = {
-    link: 0,
-    action: 1,
-    input: 2,
-    scheme: 3,
+    url: 0, link: 0,
+    callback: 1, action: 1,
+    atbot: 2, input: 2,
+    mqqapi: 3, scheme: 3,
+    subscribe: 4,
   } as const
 
   decodeButton(attrs: Dict, label: string) {
@@ -513,15 +530,16 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     const enter = attrs['qq:enter'] ?? attrs['enter']
     const anchor = attrs['qq:anchor'] ?? attrs['anchor']
     const type = attrs['qq:type'] != null ? +attrs['qq:type'] :
-      QQMessageEncoder.buttonActionMap[attrs.type] ?? (
+      QQMessageEncoder.buttonActionMap[attrs.type?.toLowerCase()] ?? (
         attrs.text ? QQMessageEncoder.buttonActionMap.input
-          : attrs.href ? attrs.href.startsWith('http')
-            ? QQMessageEncoder.buttonActionMap.link
-            : QQMessageEncoder.buttonActionMap.scheme
-            : QQMessageEncoder.buttonActionMap.action
+          : attrs.href ? attrs.href.startsWith('mqq')
+            ? QQMessageEncoder.buttonActionMap.mqqapi
+            : QQMessageEncoder.buttonActionMap.link
+            : QQMessageEncoder.buttonActionMap.atbot
       )
     const result: QQ.Button = {
       id: attrs.id,
+      ...attrs['qq:group'] ? { group_id: attrs['qq:group'] } : {},
       render_data: {
         label,
         visited_label: visited || label, // 电脑端不加 visited_label 点完就没了。
@@ -534,14 +552,17 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         type,
         permission: attrs['qq:permission'] ||
           { type: attrs.permission === 'admin' ? 1 : 2 },
-        data: attrs['qq:data'] != null ? attrs['qq:data'] :
-          type === QQMessageEncoder.buttonActionMap.input ? attrs.text
-            : type === QQMessageEncoder.buttonActionMap.link
-              || type === QQMessageEncoder.buttonActionMap.scheme ? attrs.href
-              : attrs.id,
+        data: attrs['qq:data'] != null ? attrs['qq:data'] : {
+          [QQMessageEncoder.buttonActionMap.url]: attrs.href,
+          [QQMessageEncoder.buttonActionMap.callback]: attrs.id,
+          [QQMessageEncoder.buttonActionMap.atbot]: attrs.text,
+          [QQMessageEncoder.buttonActionMap.mqqapi]: attrs.href,
+        }[type],
         ...reply ? { reply } : {},
         ...enter ? { enter } : {},
         ...anchor != null ? { anchor: +anchor } : {},
+        ...attrs['qq:subscribe_data'] ? { subscribe_data: tryParseJson(attrs['qq:subscribe_data']) } : {},
+        ...attrs['qq:modal'] ? { modal: tryParseJson(attrs['qq:modal']) || { content: attrs['qq:modal'] } } : {},
       },
     }
     return result
@@ -560,22 +581,25 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       })
   }
 
-  lastRow() {
-    if (!this.rows.length) this.rows.push([])
-    let last = this.rows[this.rows.length - 1]
+  lastRow(prompt = false) {
+    const rows = prompt ? this.promptRows : this.keyboardRows
+    if (!rows.length) rows.push([])
+    let last = rows[rows.length - 1]
     if (last.length >= 5) {
-      this.rows.push([])
-      last = this.rows[this.rows.length - 1]
+      rows.push([])
+      last = rows[rows.length - 1]
     }
     return last
   }
 
   trimButtons() {
-    this.rows = this.rows.filter(v => v.length > 0)
+    this.keyboardRows = this.keyboardRows.filter(v => v.length > 0)
+    this.promptRows = this.promptRows.filter(v => v.length > 0)
   }
 
-  exportButtons() {
-    return this.rows.map(v => ({
+  exportButtons(prompt = false) {
+    const rows = prompt ? this.promptRows : this.keyboardRows
+    return rows.map(v => ({
       buttons: v,
     })) as QQ.InlineKeyboardRow[]
   }
@@ -585,6 +609,14 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.content = escapeMarkdown(this.content)
       this.useMarkdown = true
     }
+  }
+
+  parseKeyboardFontSize(attrs: Dict) {
+    const fontSize = attrs['qq:size'] || attrs['size']
+    if (fontSize)
+      this.keyboardFontSize = fontSize
+    if (attrs['small'])
+      this.keyboardFontSize = 'small'
   }
 
   static MARKDOWN_MODIFIERS = Object.entries({
@@ -703,13 +735,16 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
       this.inMarkdown--
     } else if (type === 'button-group') {
+      this.parseKeyboardFontSize(attrs)
       this.ensureMarkdown()
-      this.rows.push([])
+      this.keyboardRows.push([])
       await this.render(children)
-      this.rows.push([])
+      this.keyboardRows.push([])
     } else if (type === 'button') {
+      this.parseKeyboardFontSize(attrs)
       this.ensureMarkdown()
-      const last = this.lastRow()
+      const prompt = attrs['qq:prompt'] || attrs['qq:suggest'] || attrs.prompt || attrs.suggest
+      const last = this.lastRow(!!prompt)
       last.push(this.decodeButton(attrs, children.join('')))
     } else if (type.startsWith('ark')) {
       await this.flush()
@@ -769,4 +804,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       await this.render(children)
     }
   }
+}
+
+function tryParseJson<T>(source: string | any): T | undefined {
+  if (typeof source !== 'string') return source
+  try { return JSON.parse(source) } catch {}
 }

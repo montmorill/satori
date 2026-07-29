@@ -476,6 +476,7 @@ export namespace Message {
     msg_type: Type
     markdown?: Markdown
     keyboard?: Partial<MessageKeyboard>
+    prompt_keyboard?: { keyboard: Partial<MessageKeyboard> }
     ark?: Ark
     // image?: unknown
     message_reference?: {
@@ -1429,6 +1430,9 @@ export interface MessageKeyboard {
 
 export interface InlineKeyboard {
   rows: InlineKeyboardRow[]
+  style?: {
+    font_size: 'small' | string
+  }
 }
 
 export interface InlineKeyboardRow {
