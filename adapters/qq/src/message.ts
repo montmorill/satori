@@ -379,7 +379,6 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }), session)
     else
       await this.sendMessage(data, session)
-    this.bot.ctx.logger.info(data)
     if (this.stream && session.messageId) {
       this.options.session.streamId = session.messageId
     }
