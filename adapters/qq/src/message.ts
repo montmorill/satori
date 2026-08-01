@@ -334,7 +334,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.media = this.attachedFile
       data.msg_type = QQ.Message.Type.MEDIA
     }
-    if (this.useMarkdown && !this.attachedFile) {
+    if (this.useMarkdown) {
+      if (this.attachedFile)
+        throw new Error('attachedFile and markdown cannot be used together')
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
@@ -619,11 +621,13 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     })) as QQ.InlineKeyboardRow[]
   }
 
-  ensureMarkdown() {
-    if (!this.useMarkdown) {
-      this.content = escapeMarkdown(this.content)
-      this.useMarkdown = true
-    }
+  async ensureMarkdown() {
+    if (this.useMarkdown)
+      return
+    if (this.attachedFile)
+      await this.flush()
+    this.content = escapeMarkdown(this.content)
+    this.useMarkdown = true
   }
 
   parseKeyboardFontSize(attrs: Dict) {
@@ -650,11 +654,11 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       this.content += this.useMarkdown && !this.inMarkdown
         ? escapeMarkdown(attrs.content) : attrs.content
     } else if (type === 'at') {
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       if (attrs.type === 'all') this.content += `@everyone`
       else if (attrs.id) this.content += `<@${attrs.id}>`
     } else if (type === 'inlinecmd' || type === 'a' && attrs.href) {
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       this.content += `[`
       const length = this.content.length
       await this.render(children)
@@ -747,21 +751,19 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
         this.markdownLayout = attrs['qq:layout']
       if (attrs['qq:fullwidth'] || attrs.fullwidth)
         this.markdownLayout = 'hide_avatar_and_center'
-      if (this.attachedFile)
-        await this.flush()
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       this.inMarkdown++
       await this.render(children)
       this.inMarkdown--
     } else if (type === 'button-group') {
       this.parseKeyboardFontSize(attrs)
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       this.keyboardRows.push([])
       await this.render(children)
       this.keyboardRows.push([])
     } else if (type === 'button') {
       this.parseKeyboardFontSize(attrs)
-      this.ensureMarkdown()
+      await this.ensureMarkdown()
       const prompt = attrs['qq:prompt'] || attrs['qq:suggest'] || attrs.prompt || attrs.suggest
       const last = this.lastRow(!!prompt)
       last.push(this.decodeButton(attrs, children.join('')))
@@ -811,7 +813,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     } else {
       for (const [delimiter, types] of QQMessageEncoder.MARKDOWN_MODIFIERS) {
         if (types.includes(type)) {
-          this.ensureMarkdown()
+          await this.ensureMarkdown()
           this.content += delimiter
           await this.render(children)
           this.content += delimiter
