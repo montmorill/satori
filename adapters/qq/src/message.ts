@@ -270,6 +270,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }
     } catch (e) {
       if (!this.bot.http.isError(e)) throw e
+      this.bot.logger.error(e.response.data)
       this.errors.push(e)
       if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
         this.bot.logger.warn('%s retry message sending', this.session.cid)
@@ -292,6 +293,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }
     } catch (e) {
       if (!this.bot.http.isError(e)) throw e
+      this.bot.logger.error(e.response.data)
       this.errors.push(e)
       if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
         this.bot.logger.warn('%s retry message sending', this.session.cid)
@@ -376,16 +378,18 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     }
     const session = this.bot.session()
     session.type = 'send'
-    if (this.stream && this.session.isDirect)
+    if (this.stream && this.session.isDirect) {
       await this.sendStreamMessage(Object.assign(this.stream, {
         msg_id,
         msg_seq,
         event_id,
       }), session)
-    else
+      if (session.messageId) {
+        this.options.session.streamId = session.messageId
+      }
+    }
+    else {
       await this.sendMessage(data, session)
-    if (this.stream && session.messageId) {
-      this.options.session.streamId = session.messageId
     }
     this.reset()
   }
@@ -466,6 +470,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       }
     } catch (e) {
       if (!this.bot.http.isError(e)) throw e
+      this.bot.logger.error(e.response.data)
       this.errors.push(e)
       if (!this.retry && this.bot.config.retryWhen.includes(e.response.data.code)) {
         this.bot.logger.warn('%s retry message sending', this.session.cid)
