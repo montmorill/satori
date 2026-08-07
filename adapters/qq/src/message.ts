@@ -321,7 +321,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     if (this.passiveSeq) msg_seq = this.passiveSeq
     if (this.passiveEventId) event_id = this.passiveEventId
     const data: QQ.Message.Request = {
-      content: this.content,
+      content: this.content.trim(),
       msg_type: QQ.Message.Type.TEXT,
       msg_id,
       msg_seq,
@@ -342,7 +342,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
-        content: this.content,
+        content: this.content.replaceAll('* *', '*&nbsp;*'),
         ...this.markdownLayout ? {
           style: {
             // main_font_size: this.markdownFontSize,
