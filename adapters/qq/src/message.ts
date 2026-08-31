@@ -786,7 +786,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     } else if (type === 'stream') {
       await this.flush()
       await this.ensureMarkdown()
-      await this.render([h('markdown', attrs, children)])
+      await this.render(children)
 
       const reset = attrs.reset || attrs.head || attrs.start || !this.session.streamId
       const done = attrs.done || attrs.tail || attrs.end || attrs.finish
