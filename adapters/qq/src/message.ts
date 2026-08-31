@@ -4,9 +4,14 @@ import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
 
-// TODO: respect context
-export const escapeMarkdown = (value: string, before: string) =>
-  value.replaceAll(/[\\`*_!|>]|^[#+-]|(?<=\])\(|(?<=^\d+)\. /gm, '\\$&')
+export const escapeMarkdown = (value: string, before: string) => {
+  value = value.replaceAll(/[\\`*_!|>]|(?<=\])\(|^[#+-]|(?<=^\d+)\./gm, '\\$&')
+  if (before.match(/\n\d+$/) && value.startsWith('.')
+    || before.endsWith(']') && value.startsWith('(')
+    || before.endsWith('\n') && '#+-'.includes(value[0]))
+    value = '\\' + value
+  return value
+}
 
 interface InlineCmdOption {
   text: string
