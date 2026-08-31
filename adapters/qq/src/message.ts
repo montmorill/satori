@@ -1,12 +1,15 @@
 import * as QQ from './types'
-import { Context, Dict, h, MessageEncoder, omit, pick, Session } from '@satorijs/core'
+import { Context, Dict, h, MessageEncoder, omit, Session } from '@satorijs/core'
 import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
 
-export const escapeMarkdown = (val: string) =>
-  val.replaceAll(/([\\`*_[\*_~`\]\-(#!>])/g, '\\$&')
-// TODO: fix `\(\LaTeX\)`
+export const escapeMarkdown = (value: string, before: string) => {
+  value = value.replaceAll(/[\\`*_{}#+\-.!|>~]|(?<=\])\(/g, '\\$&')
+  if (before.endsWith(']') && value.startsWith('('))
+    value = '\\' + value
+  return value
+}
 
 interface InlineCmdOption {
   text: string
@@ -248,6 +251,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
 
   async sendMessage(data: QQ.Message.Request, session: Session) {
     try {
+      console.log(data)
       const resp = this.session.isDirect
         ? await this.bot.internal.sendPrivateMessage(this.session.channelId, data)
         : await this.bot.internal.sendMessage(this.session.channelId, data)
@@ -342,7 +346,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       data.msg_type = QQ.Message.Type.MARKDOWN
       delete data.content
       data.markdown = {
-        content: this.content.replaceAll('* *', '*&nbsp;*'),
+        content: this.content,
         ...this.markdownLayout ? {
           style: {
             // main_font_size: this.markdownFontSize,
@@ -631,7 +635,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
       return
     if (this.attachedFile)
       await this.flush()
-    this.content = escapeMarkdown(this.content)
+    this.content = escapeMarkdown(this.content, '')
     this.useMarkdown = true
   }
 
@@ -657,7 +661,7 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
     const type = element.type.replace(/^qq:/, '')
     if (type === 'text') {
       this.content += this.useMarkdown && !this.inMarkdown
-        ? escapeMarkdown(attrs.content) : attrs.content
+        ? escapeMarkdown(attrs.content, this.content) : attrs.content
     } else if (type === 'at') {
       await this.ensureMarkdown()
       if (attrs.type === 'all') this.content += `@everyone`
