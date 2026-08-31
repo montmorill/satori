@@ -4,12 +4,8 @@ import { QQBot } from './bot'
 import { QQGuildBot } from './bot/guild'
 import crypto from 'crypto'
 
-export const escapeMarkdown = (value: string, before: string) => {
-  value = value.replaceAll(/[\\`*_{}#+\-.!|>~]|(?<=\])\(/g, '\\$&')
-  if (before.endsWith(']') && value.startsWith('('))
-    value = '\\' + value
-  return value
-}
+export const escapeMarkdown = (value: string, before: string) =>
+  value.replaceAll(/[\\`*_!|>]|^[#-+]|(?<=\])\(|(?<=^\d+)\. /gm, '\\$&')
 
 interface InlineCmdOption {
   text: string
