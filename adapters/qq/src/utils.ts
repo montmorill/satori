@@ -109,6 +109,7 @@ export function decodeGroupMessage(
   if (data.message_type === QQ.Message.Type.QUOTE) // fuck tencent
     data.content = data.content.replace(/^(<@[0-9A-F]{32}>) \1/, '$1')
   const attachedFace = new Set<number>() // attachments 下标
+  if (data.msg_elements?.length && data.content[0] === ' ') data.content = data.content.slice(1)
   message.elements = decodeGroupMessageContent(data.content, data.attachments ?? [], attachedFace)
   const mentionMap = new Map<string, h>()
   for (const mention of data.mentions ?? []) {
@@ -211,7 +212,7 @@ export async function adaptSession<C extends Context = Context>(bot: QQBot<C>, i
   let session = bot.session()
 
   if (!['GROUP_AT_MESSAGE_CREATE', 'C2C_MESSAGE_CREATE', 'GROUP_MESSAGE_CREATE', 'FRIEND_ADD', 'FRIEND_DEL',
-    'GROUP_ADD_ROBOT', 'GROUP_DEL_ROBOT', 'INTERACTION_CREATE', 'GROUP_MEMBER_ADD', 'GROUP_MEMBER_REMOVE'].includes(input.t)) {
+    'GROUP_ADD_ROBOT', 'GROUP_DEL_ROBOT', 'INTERACTION_CREATE', 'GROUP_MEMBER_ADD', 'GROUP_MEMBER_REMOVE', 'GROUP_JOIN_REQUEST'].includes(input.t)) {
     session = bot.guildBot.session()
     session.setInternal(bot.guildBot.platform, input)
   } else {
@@ -332,9 +333,28 @@ export async function adaptSession<C extends Context = Context>(bot: QQBot<C>, i
       GROUP_MEMBER_ADD: 'guild-member-added',
       GROUP_MEMBER_REMOVE: 'guild-member-removed',
     }[input.t]
-    session.channelId = session.guildId = input.d.group_openid
+    session.guildId = input.d.group_openid
+    session.channelId = input.d.group_openid
     session.userId = input.d.member_openid
     session.timestamp = input.d.timestamp
+  } else if (input.t === 'GROUP_JOIN_REQUEST') {
+    session.type = 'guild-member-request'
+    session.timestamp = new Date(input.d.apply_at).getTime()
+    session.guildId = input.d.group_openid
+    session.channelId = input.d.group_openid
+    session.userId = input.d.member_openid
+    session.messageId = input.d.join_request_id
+    session.event.user = {
+      id: input.d.member_openid,
+      avatar: `https://q.qlogo.cn/qqapp/${bot.config.id}/${input.d.member_openid}/640`,
+      name: input.d.username,
+    }
+    if (input.d.verify_info?.verify_message) {
+      session.content = input.d.verify_info.verify_message
+    } else if (input.d.verify_info?.review_qa_list?.length) {
+      session.content = input.d.verify_info.review_qa_list.map(qa => qa.answer).join('\n')
+    }
+    bot.guildMemberRequestMap.set(input.d.join_request_id, { guildId: input.d.group_openid, userId: input.d.member_openid })
   } else {
     return
   }

@@ -3,6 +3,16 @@ import { GroupInternal } from '.'
 
 declare module './internal' {
   interface GroupInternal {
+    getGuildInfo(group_openid: string): Promise<QQ.GroupInfo>
+    getGuildBotState(group_openid: string): Promise<QQ.GroupBotState>
+    getGuildMember(group_openid: string, user_openid: string): Promise<QQ.GroupMember>
+    getGuildJoinRequestList(group_openid: string): Promise<{
+      list: QQ.GroupJoinRequest[]
+      next_cursor: string
+    }>
+    approveGuildJoinRequest(group_openid: string, user_openid: string, data: QQ.ApprovalJoinRequestRequest): Promise<void>
+    getRestrictChatSetting(group_openid: string): Promise<QQ.RestrictChatSetting>
+    updateRestrictChatSetting(group_openid: string, data: QQ.UpdateRestrictChatSettingRequest): Promise<QQ.RestrictChatSetting>
     sendMessage(channel_id: string, data: QQ.Message.Request): Promise<{
       id: string
       timestamp: string
@@ -30,13 +40,31 @@ declare module './internal' {
     acknowledgeInteraction(interaction_id: string, data: {
       code: number
     }): Promise<any>
-    getGuildMember(group_openid: string, openid: string): Promise<QQ.User>
     getGateway(): Promise<QQ.GetGatewayResponse>
     getGatewayBot(): Promise<QQ.GetGatewayBotResponse>
   }
 }
 
 GroupInternal.define(false, {
+  '/v2/groups/{channel.id}/info': {
+    GET: 'getGuildInfo',
+  },
+  '/v2/groups/{channel.id}/bot_state': {
+    GET: 'getGuildBotState',
+  },
+  '/v2/groups/{channel.id}/members/{user.id}': {
+    GET: 'getGuildMember',
+  },
+  '/v2/groups/{channel.id}/join_request_list': {
+    GET: 'getGuildJoinRequestList',
+  },
+  '/v2/groups/{channel.id}/approval_join_request/{user.id}': {
+    POST: 'approveGuildJoinRequest',
+  },
+  '/v2/groups/{channel.id}/restrict_chat_setting': {
+    GET: 'getRestrictChatSetting',
+    POST: 'updateRestrictChatSetting',
+  },
   '/v2/groups/{channel.id}/messages': {
     POST: 'sendMessage',
   },
@@ -69,9 +97,6 @@ GroupInternal.define(false, {
   },
   '/v2/groups/{channel.id}/upload_part_finish': {
     POST: 'uploadPartFinishGuild',
-  },
-  '/v2/groups/{channel.id}/members/{user.id}': {
-    GET: 'getGuildMember'
   },
   '/gateway': {
     GET: 'getGateway',

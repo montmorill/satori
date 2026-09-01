@@ -355,6 +355,9 @@ export class QQMessageEncoder<C extends Context = Context> extends MessageEncode
           }
         } : {},
       }
+      if (this.bot.config.markdownVerifyImage) {
+        data.markdown.force_verify_image_resource = true
+      }
       if (this.keyboardRows.length) {
         data.markdown.content ||= ' '
         data.keyboard = {
